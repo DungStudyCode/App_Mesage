@@ -1,4 +1,6 @@
 import 'package:app_message/constants/app_colors.dart';
+import 'package:app_message/screens/login_screen.dart';
+import 'package:app_message/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class SettingScreen extends StatelessWidget {
@@ -294,32 +296,68 @@ class SettingScreen extends StatelessWidget {
                       ),
                       Divider(color: AppColors.divider, thickness: 1),
                       // Đăng xuất
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: AppColors.badge,
-                            child: Icon(
-                              Icons.logout,
-                              size: 24,
-                              color: AppColors.neutralLight,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Đăng xuất',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.badge,
+                      InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: Text('Đăng xuất'),
+                              content: Text('Bạn có chắc chắn muốn đăng xuất'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                  },
+                                  child: Text('Hủy'),
                                 ),
+                                TextButton(
+                                  onPressed: () async {
+                                    Navigator.pop(dialogContext);
+                                    await AuthService().signOut();
+                                    if (context.mounted) {
+                                      Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LoginScreen(),
+                                        ),
+                                        (route) => false,
+                                      );
+                                    }
+                                  },
+
+                                  child: Text('Đăng xuất'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.badge,
+                              child: Icon(
+                                Icons.logout,
+                                size: 24,
+                                color: AppColors.neutralLight,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Đăng xuất',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.badge,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

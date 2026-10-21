@@ -1,5 +1,7 @@
 import 'package:app_message/constants/app_colors.dart';
+import 'package:app_message/main.dart';
 import 'package:app_message/screens/login_screen.dart';
+import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/utils/validators.dart';
 import 'package:flutter/material.dart';
 
@@ -16,9 +18,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _accountController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _rePasswordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _obscureRePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -192,31 +196,72 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             padding: EdgeInsets.symmetric(vertical: 10),
                           ),
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              final name = _nameController.text.trim();
-                              final account = _accountController.text.trim();
-                              final password = _passwordController.text.trim();
-
-                              String authEmail = account;
-                              if (Validators.isPhoneNumber(account)) {
-                                authEmail = '$account@appmessage.local';
-                              }
-                              print(
-                                'Sẵn sàng đăng ký: Name: $name, AuthEmail: $authEmail, SĐT/Email gốc: $account, Password: $password',
-                              );
-                            }
-                          },
-                          child: Text(
-                            "Đăng ký",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.background,
-                              fontSize: 20,
-                            ),
-                          ),
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                                  if (_formKey.currentState!.validate()) {
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+                                    try {
+                                      // gọi firebase
+                                      await _authService.signUp(
+                                        name: _nameController.text.trim(),
+                                        account: _accountController.text.trim(),
+                                        password: _passwordController.text
+                                            .trim(),
+                                      );
+                                      // chuyển vào màn chính khi đăng kí thành công
+                                      if (mounted) {
+                                        Navigator.pushAndRemoveUntil(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => MyHomePage(
+                                              title: 'App tin nhắn',
+                                            ),
+                                          ),
+                                          (route) => false,
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              SnackBar(
+                                                content: Text(e.toString()),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isLoading = false;
+                                        });
+                                      }
+                                    }
+                                  }
+                                },
+                          child: _isLoading
+                              ? SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  "Đăng ký",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.background,
+                                    fontSize: 20,
+                                  ),
+                                ),
                         ),
                       ),
+
                       //chưa có tài khoản
                       SizedBox(height: 20),
                       Row(

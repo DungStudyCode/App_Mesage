@@ -1,5 +1,7 @@
 import 'package:app_message/constants/app_colors.dart';
+import 'package:app_message/main.dart';
 import 'package:app_message/screens/sign_up_screen.dart';
+import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/utils/validators.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +16,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _accountController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   bool _obscurePassword = true;
   @override
@@ -155,20 +159,49 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       padding: EdgeInsets.symmetric(vertical: 10),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        final account = _accountController.text.trim();
-                        final password = _passwordController.text.trim();
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              try {
+                                await _authService.signIn(
+                                  account: _accountController.text.trim(),
+                                  password: _passwordController.text.trim(),
+                                );
 
-                        String authEmail = account;
-                        if (Validators.isPhoneNumber(account)) {
-                          authEmail = '$account@appmessage.local';
-                        }
-                        print(
-                          'Sẵn sàng đăng nhập: AuthEmail: $authEmail, Gốc: $account, Password: $password',
-                        );
-                      }
-                    },
+                                //Đăng nhập thành công vào màn hình chính
+                                if (mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          MyHomePage(title: "App tin nhắn"),
+                                    ),
+                                    (route) => false,
+                                  );
+                                }
+                              } catch (e) {
+                                //Sai tk hoặc mk
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString()),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isLoading = false;
+                                  });
+                                }
+                              }
+                            }
+                          },
                     child: Text(
                       "Đăng nhập",
                       style: TextStyle(

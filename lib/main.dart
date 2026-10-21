@@ -1,8 +1,9 @@
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/screens/friends_screen.dart';
 import 'package:app_message/screens/home_screen.dart';
+import 'package:app_message/screens/login_screen.dart';
 import 'package:app_message/screens/settings_screen.dart';
-import 'package:app_message/screens/sign_up_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -25,8 +26,18 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         scaffoldBackgroundColor: AppColors.background,
       ),
-      // home: const MyHomePage(title: 'App tin nhắn'),
-      home: const SignUpScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasData) {
+            return const MyHomePage(title: 'App tin nhắn');
+          }
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
