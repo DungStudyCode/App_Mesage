@@ -3,6 +3,7 @@ import 'package:app_message/screens/friends_screen.dart';
 import 'package:app_message/screens/home_screen.dart';
 import 'package:app_message/screens/login_screen.dart';
 import 'package:app_message/screens/settings_screen.dart';
+import 'package:app_message/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -51,9 +52,40 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   // Tạo biến để hiển thị vị trí trang
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    //lắng nghe sự kiện đóng mở app
+    WidgetsBinding.instance.addObserver(this);
+    //Vừa vào app đặt online
+    AuthService().updateOnlineStatus(true);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Xử lý trạng thái online/offline khi app được mở/tắt
+    // resumes: App được mở lên hoặc quay lại từ nền
+    if (state == AppLifecycleState.resumed) {
+      // khi quay lại mở app sẽ online
+      AuthService().updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      // Khi app bị ẩn đi hoặc tắt hoàn toàn
+      AuthService().updateOnlineStatus(false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
