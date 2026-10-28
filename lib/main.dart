@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/screens/chat_detail_screen.dart';
@@ -102,12 +104,23 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             _lastNotifiedTime = lastTime;
             final sender = await ChatService().getUserById(lastSenderId);
             if (sender != null) {
-              // 1. Luôn kích hoạt thông báo hệ thống (Rung, chuông, notification tray)
+              Uint8List? avatarBytes;
+              if (sender.avatarUrl.isNotEmpty && !sender.avatarUrl.startsWith('http')) {
+                try {
+                  final cleanBase64 = sender.avatarUrl.contains(',')
+                      ? sender.avatarUrl.split(',').last
+                      : sender.avatarUrl;
+                  avatarBytes = base64Decode(cleanBase64);
+                } catch (_) {}
+              }
+
+              // 1. Luôn kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, avatar tròn, BigText, nút Trả lời/Đã xem)
               NotificationService().showLocalSystemNotification(
                 id: lastTime.millisecondsSinceEpoch ~/ 1000,
                 title: sender.name,
                 body: lastMessage,
                 senderId: sender.uid,
+                avatarBytes: avatarBytes,
               );
 
               // 2. Nếu app đang mở trên màn hình -> hiển thị thêm banner in-app

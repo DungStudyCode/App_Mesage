@@ -4,6 +4,7 @@ import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/services/chat_service.dart';
 import 'package:app_message/services/friend_service.dart';
+import 'package:app_message/services/notification_service.dart';
 import 'package:app_message/utils/in_app_notification.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,14 +17,23 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Test thông báo kiểu mới',
         onPressed: () {
+          // 1. Kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, BigText, nút Trả lời/Đã xem)
+          NotificationService().showLocalSystemNotification(
+            id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            title: 'Nguyễn Văn An',
+            body: 'Bạn đang làm gì vậy? Tối nay rảnh không đi cafe nói chuyện chút nhé! ☕',
+          );
+
+          // 2. Kích hoạt thông báo nổi Cấp độ 1 trong app
           InAppNotification.show(
             context,
             sender: 'Nguyễn Văn An',
-            message: 'Bạn đang làm gì vậy?',
+            message: 'Bạn đang làm gì vậy? Tối nay rảnh không đi cafe nói chuyện chút nhé! ☕',
           );
         },
-        child: Icon(Icons.notifications),
+        child: const Icon(Icons.notifications_active),
       ),
       appBar: AppBar(
         title: Row(
@@ -237,6 +247,8 @@ class HomeScreen extends StatelessWidget {
                           final isOnline = targetUser.isOnline;
                           final myUid = FirebaseAuth.instance.currentUser?.uid;
                           final lastSenderId = roomData['lastMessageSenderId'];
+                          final bool isRoomRead =
+                              roomData['isRead'] as bool? ?? false;
                           final unreadMap =
                               roomData['unreadCounts'] as Map<String, dynamic>?;
                           final int unreadCount =
@@ -348,36 +360,57 @@ class HomeScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 5),
-                                      // Nếu có tin chưa đọc thì hiện Badge số lượng, ngược lại hiện dấu tích đã đọc
-                                      if (unreadCount > 0)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 7,
-                                            vertical: 2,
+                                      // Cột bên phải: Trạng thái tin nhắn
+                                      // 1. Nếu là tin nhắn do mình gửi đi:
+                                      //    - Đối phương đã xem (isRoomRead): Hiện avatar tròn nhỏ của đối phương (giống Messenger)
+                                      //    - Chưa xem: Hiện icon tích tròn xám
+                                      if (lastSenderId == myUid) ...[
+                                        if (isRoomRead)
+                                          CircleAvatar(
+                                            radius: 8,
+                                            backgroundColor: AppColors.divider,
+                                            backgroundImage:
+                                                targetUser.avatarImage,
+                                            child:
+                                                targetUser.avatarImage == null
+                                                ? const Icon(
+                                                    Icons.person,
+                                                    size: 10,
+                                                    color: AppColors.primary,
+                                                  )
+                                                : null,
+                                          )
+                                        else
+                                          const Icon(
+                                            Icons.done_all,
+                                            size: 16,
+                                            color: AppColors.textHint,
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                                      ] else ...[
+                                        // 2. Nếu là tin nhắn từ đối phương gửi đến:
+                                        if (unreadCount > 0)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              unreadCount > 99
+                                                  ? '99+'
+                                                  : '$unreadCount',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
-                                          child: Text(
-                                            unreadCount > 99
-                                                ? '99+'
-                                                : '$unreadCount',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        Icon(
-                                          Icons.done_all,
-                                          size: 18,
-                                          color: AppColors.primary,
-                                        ),
+                                      ],
                                     ],
                                   ),
                                 ],

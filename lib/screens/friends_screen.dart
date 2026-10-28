@@ -196,10 +196,7 @@ class _FriendScreenState extends State<FriendScreen> {
                       leading: CircleAvatar(
                         radius: 24,
                         backgroundColor: AppColors.divider,
-                        backgroundImage: user.avatarUrl.isNotEmpty
-                            ? NetworkImage(user.avatarUrl)
-                            : null,
-                        child: user.avatarUrl.isEmpty
+                        child: user.avatarImage == null
                             ? const Icon(Icons.person, color: AppColors.primary)
                             : null,
                       ),

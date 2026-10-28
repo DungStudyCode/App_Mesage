@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/services/chat_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -77,7 +79,7 @@ class NotificationService {
       settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         if (response.payload != null) {
-          _handleNotificationClick(response.payload!);
+          _handleNotificationClick(response.payload!, actionId: response.actionId);
         }
       },
     );
@@ -155,6 +157,15 @@ class NotificationService {
     AndroidNotification? android = message.notification?.android;
 
     if (notification != null && android != null) {
+      final bigTextStyle = BigTextStyleInformation(
+        notification.body ?? '',
+        htmlFormatBigText: true,
+        contentTitle: '<b>${notification.title ?? "Tin nhắn mới"}</b>',
+        htmlFormatContentTitle: true,
+        summaryText: 'Tin nhắn mới',
+        htmlFormatSummaryText: true,
+      );
+
       _localNotifications.show(
         id: notification.hashCode,
         title: notification.title ?? 'Tin nhắn mới',
@@ -167,8 +178,26 @@ class NotificationService {
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
+            color: AppColors.primary,
+            styleInformation: bigTextStyle,
             playSound: true,
             enableVibration: true,
+            enableLights: true,
+            ledColor: AppColors.primary,
+            ledOnMs: 1000,
+            ledOffMs: 500,
+            actions: const <AndroidNotificationAction>[
+              AndroidNotificationAction(
+                'reply_action',
+                'Trả lời',
+                showsUserInterface: true,
+              ),
+              AndroidNotificationAction(
+                'mark_as_read',
+                'Đã xem',
+                showsUserInterface: false,
+              ),
+            ],
           ),
           iOS: const DarwinNotificationDetails(
             presentAlert: true,
@@ -181,17 +210,28 @@ class NotificationService {
     }
   }
 
-  /// Hiển thị thông báo hệ thống cục bộ (Dùng khi có tin nhắn mới hoặc để Test)
+  /// Hiển thị thông báo hệ thống phong cách Messenger/Zalo (Màu tím, avatar, BigText, nút tương tác)
   Future<void> showLocalSystemNotification({
     required int id,
     required String title,
     required String body,
     String? senderId,
+    Uint8List? avatarBytes,
   }) async {
     final Map<String, dynamic> payloadMap = {};
     if (senderId != null) {
       payloadMap['senderId'] = senderId;
     }
+
+    // Cấu hình kiểu văn bản mở rộng (BigTextStyle) cho phép đọc trọn vẹn tin nhắn dài
+    final bigTextStyle = BigTextStyleInformation(
+      body,
+      htmlFormatBigText: true,
+      contentTitle: '<b>$title</b>',
+      htmlFormatContentTitle: true,
+      summaryText: 'Tin nhắn mới',
+      htmlFormatSummaryText: true,
+    );
 
     await _localNotifications.show(
       id: id,
@@ -205,8 +245,29 @@ class NotificationService {
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+          color: AppColors.primary,
+          // Avatar tròn của người gửi ở góc phải thông báo
+          largeIcon: avatarBytes != null ? ByteArrayAndroidBitmap(avatarBytes) : null,
+          styleInformation: bigTextStyle,
           playSound: true,
           enableVibration: true,
+          enableLights: true,
+          ledColor: AppColors.primary,
+          ledOnMs: 1000,
+          ledOffMs: 500,
+          // Các nút hành động tương tác trực tiếp
+          actions: const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              'reply_action',
+              'Trả lời',
+              showsUserInterface: true,
+            ),
+            AndroidNotificationAction(
+              'mark_as_read',
+              'Đã xem',
+              showsUserInterface: false,
+            ),
+          ],
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -218,12 +279,18 @@ class NotificationService {
     );
   }
 
-  /// Xử lý click payload từ local notification
-  void _handleNotificationClick(String payload) {
+  /// Xử lý sự kiện khi bấm vào thông báo hoặc nút hành động (Trả lời / Đã xem)
+  void _handleNotificationClick(String payload, {String? actionId}) {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
       final senderId = data['senderId'] as String?;
-      if (senderId != null) {
+      if (senderId == null) return;
+
+      if (actionId == 'mark_as_read') {
+        // Đánh dấu đã đọc cuộc trò chuyện
+        ChatService().markMessagesAsRead(senderId);
+      } else {
+        // 'reply_action' hoặc bấm trực tiếp vào thông báo -> mở màn hình chat
         navigateToChat(senderId);
       }
     } catch (e) {
