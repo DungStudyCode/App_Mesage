@@ -4,8 +4,6 @@ import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/services/chat_service.dart';
 import 'package:app_message/services/friend_service.dart';
-import 'package:app_message/services/notification_service.dart';
-import 'package:app_message/utils/in_app_notification.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,25 +14,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Test thông báo kiểu mới',
-        onPressed: () {
-          // 1. Kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, BigText, nút Trả lời/Đã xem)
-          NotificationService().showLocalSystemNotification(
-            id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            title: 'Nguyễn Văn An',
-            body: 'Bạn đang làm gì vậy? Tối nay rảnh không đi cafe nói chuyện chút nhé! ☕',
-          );
-
-          // 2. Kích hoạt thông báo nổi Cấp độ 1 trong app
-          InAppNotification.show(
-            context,
-            sender: 'Nguyễn Văn An',
-            message: 'Bạn đang làm gì vậy? Tối nay rảnh không đi cafe nói chuyện chút nhé! ☕',
-          );
-        },
-        child: const Icon(Icons.notifications_active),
-      ),
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

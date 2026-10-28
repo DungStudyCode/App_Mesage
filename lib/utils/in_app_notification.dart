@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/models/user_model.dart';
+import 'package:app_message/services/notification_service.dart';
 import 'package:flutter/material.dart';
 
 class InAppNotification {
   static OverlayEntry? _currentEntry;
 
   static void show(
-    BuildContext context, {
+    BuildContext? context, {
     dynamic sender,
     String? senderName,
     required String message,
@@ -17,6 +18,13 @@ class InAppNotification {
     // Nếu đang có thông báo cũ thì xóa đi
     _currentEntry?.remove();
     _currentEntry = null;
+
+    final targetContext =
+        context ?? NotificationService.navigatorKey.currentContext;
+    if (targetContext == null) return;
+
+    final overlay = Overlay.maybeOf(targetContext);
+    if (overlay == null) return;
 
     UserModel? senderUser;
     String name = 'Tin nhắn mới';
@@ -32,7 +40,6 @@ class InAppNotification {
       name = senderName;
     }
 
-    final overlay = Overlay.of(context);
     late OverlayEntry entry;
 
     entry = OverlayEntry(

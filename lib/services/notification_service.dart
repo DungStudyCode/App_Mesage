@@ -162,7 +162,7 @@ class NotificationService {
         htmlFormatBigText: true,
         contentTitle: '<b>${notification.title ?? "Tin nhắn mới"}</b>',
         htmlFormatContentTitle: true,
-        summaryText: 'Tin nhắn mới',
+        summaryText: 'Vừa xong',
         htmlFormatSummaryText: true,
       );
 
@@ -176,7 +176,10 @@ class NotificationService {
             _channel.name,
             channelDescription: _channel.description,
             importance: Importance.max,
-            priority: Priority.high,
+            priority: Priority.max,
+            category: AndroidNotificationCategory.message,
+            visibility: NotificationVisibility.public,
+            subText: 'Vừa xong',
             icon: '@mipmap/ic_launcher',
             color: AppColors.primary,
             styleInformation: bigTextStyle,
@@ -229,7 +232,7 @@ class NotificationService {
       htmlFormatBigText: true,
       contentTitle: '<b>$title</b>',
       htmlFormatContentTitle: true,
-      summaryText: 'Tin nhắn mới',
+      summaryText: 'Vừa xong',
       htmlFormatSummaryText: true,
     );
 
@@ -243,7 +246,10 @@ class NotificationService {
           _channel.name,
           channelDescription: _channel.description,
           importance: Importance.max,
-          priority: Priority.high,
+          priority: Priority.max,
+          category: AndroidNotificationCategory.message,
+          visibility: NotificationVisibility.public,
+          subText: 'Vừa xong',
           icon: '@mipmap/ic_launcher',
           color: AppColors.primary,
           // Avatar tròn của người gửi ở góc phải thông báo
@@ -255,6 +261,7 @@ class NotificationService {
           ledColor: AppColors.primary,
           ledOnMs: 1000,
           ledOffMs: 500,
+          ticker: '$title: $body',
           // Các nút hành động tương tác trực tiếp
           actions: const <AndroidNotificationAction>[
             AndroidNotificationAction(
