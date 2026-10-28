@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:app_message/constants/app_colors.dart';
+import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/screens/friends_screen.dart';
 import 'package:app_message/screens/home_screen.dart';
 import 'package:app_message/screens/login_screen.dart';
 import 'package:app_message/screens/settings_screen.dart';
 import 'package:app_message/services/auth_service.dart';
+import 'package:app_message/services/chat_service.dart';
+import 'package:app_message/services/notification_service.dart';
+import 'package:app_message/utils/in_app_notification.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -12,6 +19,7 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await NotificationService().initialize();
   runApp(const MyApp());
 }
 
@@ -21,6 +29,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'App tin nhắn',
       theme: ThemeData(
@@ -56,17 +65,78 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   // Tạo biến để hiển thị vị trí trang
   int _selectedIndex = 0;
 
+  StreamSubscription? _chatRoomsSubscription;
+  final DateTime _appStartTime = DateTime.now();
+  DateTime _lastNotifiedTime = DateTime.now();
+
   @override
   void initState() {
     super.initState();
     //lắng nghe sự kiện đóng mở app
     WidgetsBinding.instance.addObserver(this);
-    //Vừa vào app đặt online
+    //Vừa vào app đặt online & đồng bộ FCM Token
     AuthService().updateOnlineStatus(true);
+    NotificationService().updateTokenInFirestore();
+    _startListeningForMessages();
+  }
+
+  void _startListeningForMessages() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+    _chatRoomsSubscription = ChatService().getChatRoomsStream().listen((
+      QuerySnapshot snapshot,
+    ) async {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added ||
+            change.type == DocumentChangeType.modified) {
+          final data = change.doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+          final lastSenderId = data['lastMessageSenderId'] as String?;
+          final lastMessage = data['lastMessage'] as String? ?? '';
+          final lastTime = (data['lastMessageTime'] as Timestamp?)?.toDate();
+          if (lastSenderId != null &&
+              lastSenderId != currentUserId &&
+              lastTime != null &&
+              lastTime.isAfter(_appStartTime) &&
+              lastTime.isAfter(_lastNotifiedTime)) {
+            _lastNotifiedTime = lastTime;
+            final sender = await ChatService().getUserById(lastSenderId);
+            if (sender != null) {
+              // 1. Luôn kích hoạt thông báo hệ thống (Rung, chuông, notification tray)
+              NotificationService().showLocalSystemNotification(
+                id: lastTime.millisecondsSinceEpoch ~/ 1000,
+                title: sender.name,
+                body: lastMessage,
+                senderId: sender.uid,
+              );
+
+              // 2. Nếu app đang mở trên màn hình -> hiển thị thêm banner in-app
+              if (mounted) {
+                InAppNotification.show(
+                  context,
+                  sender: sender,
+                  message: lastMessage,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ChatDetailScreen(receiverUser: sender),
+                      ),
+                    );
+                  },
+                );
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _chatRoomsSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

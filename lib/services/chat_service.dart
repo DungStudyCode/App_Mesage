@@ -45,6 +45,8 @@ class ChatService {
       'lastMessage': message.trim(),
       'lastMessageSenderId': senderId,
       'lastMessageTime': Timestamp.fromDate(now),
+      'isRead': false,
+      'unreadCounts': {receiverId: FieldValue.increment(1), senderId: 0},
     }, SetOptions(merge: true));
   }
 
@@ -93,5 +95,38 @@ class ChatService {
           .map((doc) => UserModel.fromMap(doc.data()))
           .toList();
     });
+  }
+
+  // Đánh dấu tin nhắn đã đọc
+  Future<void> markMessagesAsRead(String receiverId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+    final chatRoomId = getChatRoomId(currentUser.uid, receiverId);
+    // lấy thông tin phòng chat
+    final roomDoc = await _firestore
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .get();
+    if (!roomDoc.exists) return;
+    final data = roomDoc.data();
+    final lastSenderId = data?['lastMessageSenderId'];
+
+    if (lastSenderId != null && lastSenderId != currentUser.uid) {
+      await _firestore.collection('chat_rooms').doc(chatRoomId).update({
+        'isRead': true,
+        'unreadCounts.${currentUser.uid}': 0,
+      });
+    }
+  }
+
+  // lấy thông tin user theo uid
+  Future<UserModel?> getUserById(String uid) async {
+    try {
+      final doc = await _firestore.collection('user').doc(uid).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return UserModel.fromMap(doc.data()!);
+    } catch (e) {
+      return null;
+    }
   }
 }

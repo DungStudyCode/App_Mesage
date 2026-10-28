@@ -29,6 +29,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _chatService.markMessagesAsRead(widget.receiverUser.uid);
+  }
+
+  @override
   void dispose() {
     _mesageController.dispose();
     super.dispose();
@@ -51,11 +57,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: AppColors.divider,
-                  backgroundImage: user.avatarUrl.isNotEmpty
-                      ? NetworkImage(user.avatarUrl)
-                      : null,
-                  child: user.avatarUrl.isEmpty
-                      ? Icon(Icons.person, color: AppColors.textSecondary)
+                  backgroundImage: user.avatarImage,
+                  child: user.avatarImage == null
+                      ? const Icon(Icons.person, color: AppColors.primary)
                       : null,
                 ),
                 const SizedBox(width: 10),

@@ -1,8 +1,10 @@
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/models/user_model.dart';
 import 'package:app_message/screens/chat_detail_screen.dart';
+import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/services/chat_service.dart';
 import 'package:app_message/services/friend_service.dart';
+import 'package:app_message/utils/in_app_notification.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,16 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          InAppNotification.show(
+            context,
+            sender: 'Nguyễn Văn An',
+            message: 'Bạn đang làm gì vậy?',
+          );
+        },
+        child: Icon(Icons.notifications),
+      ),
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -75,14 +87,23 @@ class HomeScreen extends StatelessWidget {
                             children: [
                               Stack(
                                 children: [
-                                  CircleAvatar(
-                                    radius: 32,
-                                    backgroundColor: AppColors.divider,
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 36,
-                                      color: AppColors.textSecondary,
-                                    ),
+                                  StreamBuilder<UserModel?>(
+                                    stream: AuthService().getUserDataStream(),
+                                    builder: (context, userSnapshot) {
+                                      final myUser = userSnapshot.data;
+                                      return CircleAvatar(
+                                        radius: 32,
+                                        backgroundColor: AppColors.divider,
+                                        backgroundImage: myUser?.avatarImage,
+                                        child: myUser?.avatarImage == null
+                                            ? const Icon(
+                                                Icons.person,
+                                                size: 36,
+                                                color: AppColors.textSecondary,
+                                              )
+                                            : null,
+                                      );
+                                    },
                                   ),
                                   Positioned(
                                     right: 0,
@@ -214,6 +235,13 @@ class HomeScreen extends StatelessWidget {
                               ? '${lastTime.toDate().hour.toString().padLeft(2, '0')}:${lastTime.toDate().minute.toString().padLeft(2, '0')}'
                               : '';
                           final isOnline = targetUser.isOnline;
+                          final myUid = FirebaseAuth.instance.currentUser?.uid;
+                          final lastSenderId = roomData['lastMessageSenderId'];
+                          final unreadMap =
+                              roomData['unreadCounts'] as Map<String, dynamic>?;
+                          final int unreadCount =
+                              (unreadMap?[myUid] as num?)?.toInt() ?? 0;
+                          final bool isUnread = unreadCount > 0;
                           return InkWell(
                             onTap: () {
                               Navigator.push(
@@ -282,27 +310,75 @@ class HomeScreen extends StatelessWidget {
                                         const SizedBox(height: 4),
                                         Text(
                                           lastMessage.isNotEmpty
-                                              ? lastMessage
+                                              ? (lastSenderId == myUid)
+                                                    ? 'Bạn: $lastMessage'
+                                                    : lastMessage
                                               : 'Đã bắt đầu cuộc trò chuyện',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 14,
-                                            color: AppColors.textSecondary,
+                                            color: isUnread
+                                                ? AppColors.textPrimary
+                                                : AppColors.textSecondary,
+                                            fontWeight: isUnread
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  // Thời gian gửi tin nhắn cuối
-                                  Text(
-                                    timeStr,
-                                    style: const TextStyle(
-                                      color: AppColors.textHint,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  // Cột bên phải: Thời gian & Chấm thông báo chưa đọc
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        timeStr,
+                                        style: TextStyle(
+                                          color: isUnread
+                                              ? AppColors.primary
+                                              : AppColors.textHint,
+                                          fontSize: 12,
+                                          fontWeight: isUnread
+                                              ? FontWeight.bold
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      // Nếu có tin chưa đọc thì hiện Badge số lượng, ngược lại hiện dấu tích đã đọc
+                                      if (unreadCount > 0)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            unreadCount > 99
+                                                ? '99+'
+                                                : '$unreadCount',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          Icons.done_all,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -319,6 +395,13 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Hàm rút gọn tên thông minh (Ví dụ: "Nguyễn Văn Dũng" -> "Văn Dũng")
+  String _getShortName(String fullName) {
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.length <= 1) return fullName;
+    return '${parts[parts.length - 2]} ${parts.last}';
   }
 
   Widget _buildOnlineUserItem(BuildContext context, UserModel user) {
@@ -374,15 +457,18 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 SizedBox(
-                  width: 65,
+                  width: 74,
                   child: Text(
-                    liveUser.name.isNotEmpty ? liveUser.name : 'Người dùng',
+                    liveUser.name.isNotEmpty
+                        ? _getShortName(liveUser.name)
+                        : 'Người dùng',
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),

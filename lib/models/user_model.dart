@@ -12,6 +12,7 @@ class UserModel {
   final bool isOnline;
   final List<String> friends;
   final DateTime? createdAt;
+  final String? fcmToken;
 
   UserModel({
     required this.uid,
@@ -22,6 +23,7 @@ class UserModel {
     this.isOnline = false,
     this.createdAt,
     this.friends = const [],
+    this.fcmToken,
   });
 
   // Lấy dữ liệu về từ Firestore
@@ -34,6 +36,7 @@ class UserModel {
       avatarUrl: map['avatarUrl'] ?? '',
       isOnline: map['isOnline'] ?? false,
       friends: List<String>.from(map['friends'] ?? []),
+      fcmToken: map['fcmToken'] as String?,
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
@@ -50,6 +53,7 @@ class UserModel {
       'avatarUrl': avatarUrl,
       'isOnline': isOnline,
       'friends': friends,
+      'fcmToken': fcmToken,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -66,6 +70,7 @@ class UserModel {
     bool? isOnline,
     List<String>? friends,
     DateTime? createdAt,
+    String? fcmToken,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -76,6 +81,7 @@ class UserModel {
       isOnline: isOnline ?? this.isOnline,
       friends: friends ?? this.friends,
       createdAt: createdAt ?? this.createdAt,
+      fcmToken: fcmToken ?? this.fcmToken,
     );
   }
 
