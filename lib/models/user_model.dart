@@ -12,6 +12,7 @@ class UserModel {
   final bool isOnline;
   final List<String> friends;
   final DateTime? createdAt;
+  final DateTime? lastActive;
   final String? fcmToken;
 
   UserModel({
@@ -22,6 +23,7 @@ class UserModel {
     required this.avatarUrl,
     this.isOnline = false,
     this.createdAt,
+    this.lastActive,
     this.friends = const [],
     this.fcmToken,
   });
@@ -40,6 +42,9 @@ class UserModel {
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
+      lastActive: map['lastActive'] != null
+          ? (map['lastActive'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -57,6 +62,9 @@ class UserModel {
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
+      'lastActive': lastActive != null
+          ? Timestamp.fromDate(lastActive!)
+          : null,
     };
   }
 
@@ -70,6 +78,7 @@ class UserModel {
     bool? isOnline,
     List<String>? friends,
     DateTime? createdAt,
+    DateTime? lastActive,
     String? fcmToken,
   }) {
     return UserModel(
@@ -81,6 +90,7 @@ class UserModel {
       isOnline: isOnline ?? this.isOnline,
       friends: friends ?? this.friends,
       createdAt: createdAt ?? this.createdAt,
+      lastActive: lastActive ?? this.lastActive,
       fcmToken: fcmToken ?? this.fcmToken,
     );
   }

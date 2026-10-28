@@ -62,7 +62,30 @@ class HomeScreen extends StatelessWidget {
               child: StreamBuilder<List<UserModel>>(
                 stream: FriendService().getFriendsStream(),
                 builder: (context, snapshot) {
-                  final myFriends = snapshot.data ?? [];
+                  final myFriends = List<UserModel>.from(snapshot.data ?? []);
+
+                  // Sắp xếp theo chuẩn Messenger:
+                  // 1. Ai đang Online (isOnline = true) luôn ưu tiên hiển thị trước
+                  // 2. Tiếp theo ai hoạt động gần nhất (lastActive mới nhất) đứng trước
+                  // 3. Cuối cùng sắp theo bảng chữ cái A-Z
+                  myFriends.sort((a, b) {
+                    if (a.isOnline && !b.isOnline) return -1;
+                    if (!a.isOnline && b.isOnline) return 1;
+
+                    // Nếu cùng Online hoặc cùng Offline -> so sánh thời gian hoạt động gần nhất (lastActive)
+                    if (a.lastActive != null && b.lastActive != null) {
+                      final timeCompare = b.lastActive!.compareTo(
+                        a.lastActive!,
+                      );
+                      if (timeCompare != 0) return timeCompare;
+                    } else if (a.lastActive != null) {
+                      return -1;
+                    } else if (b.lastActive != null) {
+                      return 1;
+                    }
+
+                    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+                  });
 
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,

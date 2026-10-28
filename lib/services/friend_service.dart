@@ -73,19 +73,19 @@ class FriendService {
         .collection('user')
         .doc(currentUserId)
         .snapshots()
-        .asyncMap((doc) async {
-          if (!doc.exists || doc.data() == null) return [];
+        .asyncExpand((doc) {
+          if (!doc.exists || doc.data() == null) return Stream.value([]);
           final user = UserModel.fromMap(doc.data()!);
           final friendIds = user.friends;
-          if (friendIds.isEmpty) return [];
-          // Lấy thông tin chi tiết từng bạn bè
-          final friendDocs = await Future.wait(
-            friendIds.map((id) => _firestore.collection('user').doc(id).get()),
-          );
-          return friendDocs
-              .where((d) => d.exists && d.data() != null)
-              .map((d) => UserModel.fromMap(d.data()!))
-              .toList();
+          if (friendIds.isEmpty) return Stream.value([]);
+          // Lắng nghe cập nhật realtime của danh sách bạn bè
+          return _firestore
+              .collection('user')
+              .where('uid', whereIn: friendIds.take(30).toList())
+              .snapshots()
+              .map((snapshot) => snapshot.docs
+                  .map((d) => UserModel.fromMap(d.data()))
+                  .toList());
         });
   }
 

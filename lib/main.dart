@@ -108,9 +108,13 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 if (sender.avatarUrl.startsWith('http')) {
                   try {
                     final client = HttpClient();
-                    final request = await client.getUrl(Uri.parse(sender.avatarUrl));
+                    final request = await client.getUrl(
+                      Uri.parse(sender.avatarUrl),
+                    );
                     final response = await request.close();
-                    avatarBytes = await consolidateHttpClientResponseBytes(response);
+                    avatarBytes = await consolidateHttpClientResponseBytes(
+                      response,
+                    );
                   } catch (e) {
                     debugPrint('Lỗi tải avatar qua HTTP: $e');
                   }

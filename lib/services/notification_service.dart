@@ -233,7 +233,9 @@ class NotificationService {
       key: senderId,
       icon: avatarFilePath != null
           ? BitmapFilePathAndroidIcon(avatarFilePath)
-          : (circularBytes != null ? ByteArrayAndroidIcon(circularBytes) : null),
+          : (circularBytes != null
+                ? ByteArrayAndroidIcon(circularBytes)
+                : null),
       important: true,
     );
 
@@ -264,8 +266,8 @@ class NotificationService {
           largeIcon: avatarFilePath != null
               ? FilePathAndroidBitmap(avatarFilePath)
               : (circularBytes != null
-                  ? ByteArrayAndroidBitmap(circularBytes)
-                  : null),
+                    ? ByteArrayAndroidBitmap(circularBytes)
+                    : null),
           styleInformation: messagingStyle,
           playSound: true,
           enableVibration: true,
@@ -315,7 +317,7 @@ class NotificationService {
   /// Cắt ảnh đại diện thành hình tròn hoàn hảo để hiển thị trên khay thông báo Android
   static Future<Uint8List?> _cropToCircle(
     Uint8List bytes, {
-    int size = 120,
+    int size = 240,
   }) async {
     try {
       final codec = await ui.instantiateImageCodec(
@@ -354,7 +356,10 @@ class NotificationService {
   }
 
   /// Lưu file avatar vào bộ nhớ đệm (cache) để Android NotificationManager load trực tiếp
-  static Future<String?> _saveAvatarToFile(Uint8List bytes, String filename) async {
+  static Future<String?> _saveAvatarToFile(
+    Uint8List bytes,
+    String filename,
+  ) async {
     try {
       final tempDir = Directory.systemTemp;
       final file = File('${tempDir.path}/$filename.png');
