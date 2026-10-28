@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/screens/friends_screen.dart';
 import 'package:app_message/screens/home_screen.dart';
@@ -103,13 +104,26 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             final sender = await ChatService().getUserById(lastSenderId);
             if (sender != null) {
               Uint8List? avatarBytes;
-              if (sender.avatarUrl.isNotEmpty && !sender.avatarUrl.startsWith('http')) {
-                try {
-                  final cleanBase64 = sender.avatarUrl.contains(',')
-                      ? sender.avatarUrl.split(',').last
-                      : sender.avatarUrl;
-                  avatarBytes = base64Decode(cleanBase64);
-                } catch (_) {}
+              if (sender.avatarUrl.isNotEmpty) {
+                if (sender.avatarUrl.startsWith('http')) {
+                  try {
+                    final client = HttpClient();
+                    final request = await client.getUrl(Uri.parse(sender.avatarUrl));
+                    final response = await request.close();
+                    avatarBytes = await consolidateHttpClientResponseBytes(response);
+                  } catch (e) {
+                    debugPrint('Lỗi tải avatar qua HTTP: $e');
+                  }
+                } else {
+                  try {
+                    final cleanBase64 = sender.avatarUrl.contains(',')
+                        ? sender.avatarUrl.split(',').last
+                        : sender.avatarUrl;
+                    avatarBytes = base64Decode(cleanBase64);
+                  } catch (e) {
+                    debugPrint('Lỗi decode avatar Base64: $e');
+                  }
+                }
               }
 
               // 1. Luôn kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, avatar tròn, BigText)

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -218,27 +219,30 @@ class NotificationService {
       payloadMap['senderId'] = senderId;
     }
 
-    Uint8List? circularBytes =
-        avatarBytes != null ? await _cropToCircle(avatarBytes) : null;
+    Uint8List? circularBytes = avatarBytes != null
+        ? await _cropToCircle(avatarBytes)
+        : null;
+
+    // Lưu avatar vào file cache để hệ thống Android load ảnh trực tiếp mượt mà
+    final avatarFilePath = circularBytes != null
+        ? await _saveAvatarToFile(circularBytes, 'avatar_${senderId ?? id}')
+        : null;
 
     final person = Person(
       name: title,
       key: senderId,
-      icon: circularBytes != null ? ByteArrayAndroidIcon(circularBytes) : null,
+      icon: avatarFilePath != null
+          ? BitmapFilePathAndroidIcon(avatarFilePath)
+          : (circularBytes != null ? ByteArrayAndroidIcon(circularBytes) : null),
       important: true,
     );
 
+    // BẮT BUỘC conversationTitle: null để Android hiểu đây là chat 1-1 và hiển thị Avatar người gửi thay vì Logo App
     final messagingStyle = MessagingStyleInformation(
       person,
-      conversationTitle: title,
+      conversationTitle: null,
       groupConversation: false,
-      messages: [
-        Message(
-          body,
-          DateTime.now(),
-          person,
-        ),
-      ],
+      messages: [Message(body, DateTime.now(), person)],
     );
 
     await _localNotifications.show(
@@ -256,9 +260,12 @@ class NotificationService {
           visibility: NotificationVisibility.public,
           icon: '@mipmap/ic_launcher',
           color: AppColors.primary,
-          largeIcon: circularBytes != null
-              ? ByteArrayAndroidBitmap(circularBytes)
-              : null,
+          // Đặt avatar tròn làm largeIcon cho thông báo
+          largeIcon: avatarFilePath != null
+              ? FilePathAndroidBitmap(avatarFilePath)
+              : (circularBytes != null
+                  ? ByteArrayAndroidBitmap(circularBytes)
+                  : null),
           styleInformation: messagingStyle,
           playSound: true,
           enableVibration: true,
@@ -306,7 +313,10 @@ class NotificationService {
   }
 
   /// Cắt ảnh đại diện thành hình tròn hoàn hảo để hiển thị trên khay thông báo Android
-  static Future<Uint8List?> _cropToCircle(Uint8List bytes, {int size = 120}) async {
+  static Future<Uint8List?> _cropToCircle(
+    Uint8List bytes, {
+    int size = 120,
+  }) async {
     try {
       final codec = await ui.instantiateImageCodec(
         bytes,
@@ -340,6 +350,19 @@ class NotificationService {
     } catch (e) {
       debugPrint('Lỗi crop circular avatar: $e');
       return bytes;
+    }
+  }
+
+  /// Lưu file avatar vào bộ nhớ đệm (cache) để Android NotificationManager load trực tiếp
+  static Future<String?> _saveAvatarToFile(Uint8List bytes, String filename) async {
+    try {
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/$filename.png');
+      await file.writeAsBytes(bytes, flush: true);
+      return file.path;
+    } catch (e) {
+      debugPrint('Lỗi lưu avatar file: $e');
+      return null;
     }
   }
 }
