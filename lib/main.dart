@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:app_message/constants/app_colors.dart';
-import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/screens/friends_screen.dart';
 import 'package:app_message/screens/home_screen.dart';
 import 'package:app_message/screens/login_screen.dart';
@@ -11,7 +10,6 @@ import 'package:app_message/screens/settings_screen.dart';
 import 'package:app_message/services/auth_service.dart';
 import 'package:app_message/services/chat_service.dart';
 import 'package:app_message/services/notification_service.dart';
-import 'package:app_message/utils/in_app_notification.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -114,7 +112,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 } catch (_) {}
               }
 
-              // 1. Luôn kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, avatar tròn, BigText, nút Trả lời/Đã xem)
+              // 1. Luôn kích hoạt thông báo hệ thống phong cách Messenger (Màu tím, avatar tròn, BigText)
               NotificationService().showLocalSystemNotification(
                 id: lastTime.millisecondsSinceEpoch ~/ 1000,
                 title: sender.name,
@@ -122,24 +120,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 senderId: sender.uid,
                 avatarBytes: avatarBytes,
               );
-
-              // 2. Nếu app đang mở trên màn hình -> hiển thị thêm banner in-app
-              if (mounted) {
-                InAppNotification.show(
-                  context,
-                  sender: sender,
-                  message: lastMessage,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ChatDetailScreen(receiverUser: sender),
-                      ),
-                    );
-                  },
-                );
-              }
             }
           }
         }

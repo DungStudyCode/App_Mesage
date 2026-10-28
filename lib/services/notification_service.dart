@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:app_message/constants/app_colors.dart';
 import 'package:app_message/screens/chat_detail_screen.dart';
 import 'package:app_message/services/chat_service.dart';
@@ -50,7 +52,9 @@ class NotificationService {
       provisional: false,
     );
 
-    debugPrint('User granted notification permission: ${settings.authorizationStatus}');
+    debugPrint(
+      'User granted notification permission: ${settings.authorizationStatus}',
+    );
 
     // 2. Cấu hình hiển thị notification khi app ở Foreground
     await _fcm.setForegroundNotificationPresentationOptions(
@@ -65,10 +69,10 @@ class NotificationService {
 
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
@@ -79,7 +83,10 @@ class NotificationService {
       settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         if (response.payload != null) {
-          _handleNotificationClick(response.payload!, actionId: response.actionId);
+          _handleNotificationClick(
+            response.payload!,
+            actionId: response.actionId,
+          );
         }
       },
     );
@@ -87,7 +94,8 @@ class NotificationService {
     // 4. Tạo Notification Channel trên Android
     final androidImplementation = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidImplementation != null) {
       await androidImplementation.createNotificationChannel(_channel);
     }
@@ -141,10 +149,13 @@ class NotificationService {
       final token = customToken ?? await _fcm.getToken();
       if (token != null) {
         debugPrint('FCM Token hiện tại: $token');
-        await FirebaseFirestore.instance.collection('user').doc(user.uid).update({
-          'fcmToken': token,
-          'lastTokenUpdate': FieldValue.serverTimestamp(),
-        });
+        await FirebaseFirestore.instance
+            .collection('user')
+            .doc(user.uid)
+            .update({
+              'fcmToken': token,
+              'lastTokenUpdate': FieldValue.serverTimestamp(),
+            });
       }
     } catch (e) {
       debugPrint('Lỗi cập nhật FCM token: $e');
@@ -162,8 +173,6 @@ class NotificationService {
         htmlFormatBigText: true,
         contentTitle: '<b>${notification.title ?? "Tin nhắn mới"}</b>',
         htmlFormatContentTitle: true,
-        summaryText: 'Vừa xong',
-        htmlFormatSummaryText: true,
       );
 
       _localNotifications.show(
@@ -179,28 +188,11 @@ class NotificationService {
             priority: Priority.max,
             category: AndroidNotificationCategory.message,
             visibility: NotificationVisibility.public,
-            subText: 'Vừa xong',
             icon: '@mipmap/ic_launcher',
             color: AppColors.primary,
             styleInformation: bigTextStyle,
             playSound: true,
             enableVibration: true,
-            enableLights: true,
-            ledColor: AppColors.primary,
-            ledOnMs: 1000,
-            ledOffMs: 500,
-            actions: const <AndroidNotificationAction>[
-              AndroidNotificationAction(
-                'reply_action',
-                'Trả lời',
-                showsUserInterface: true,
-              ),
-              AndroidNotificationAction(
-                'mark_as_read',
-                'Đã xem',
-                showsUserInterface: false,
-              ),
-            ],
           ),
           iOS: const DarwinNotificationDetails(
             presentAlert: true,
@@ -226,14 +218,27 @@ class NotificationService {
       payloadMap['senderId'] = senderId;
     }
 
-    // Cấu hình kiểu văn bản mở rộng (BigTextStyle) cho phép đọc trọn vẹn tin nhắn dài
-    final bigTextStyle = BigTextStyleInformation(
-      body,
-      htmlFormatBigText: true,
-      contentTitle: '<b>$title</b>',
-      htmlFormatContentTitle: true,
-      summaryText: 'Vừa xong',
-      htmlFormatSummaryText: true,
+    Uint8List? circularBytes =
+        avatarBytes != null ? await _cropToCircle(avatarBytes) : null;
+
+    final person = Person(
+      name: title,
+      key: senderId,
+      icon: circularBytes != null ? ByteArrayAndroidIcon(circularBytes) : null,
+      important: true,
+    );
+
+    final messagingStyle = MessagingStyleInformation(
+      person,
+      conversationTitle: title,
+      groupConversation: false,
+      messages: [
+        Message(
+          body,
+          DateTime.now(),
+          person,
+        ),
+      ],
     );
 
     await _localNotifications.show(
@@ -249,32 +254,15 @@ class NotificationService {
           priority: Priority.max,
           category: AndroidNotificationCategory.message,
           visibility: NotificationVisibility.public,
-          subText: 'Vừa xong',
           icon: '@mipmap/ic_launcher',
           color: AppColors.primary,
-          // Avatar tròn của người gửi ở góc phải thông báo
-          largeIcon: avatarBytes != null ? ByteArrayAndroidBitmap(avatarBytes) : null,
-          styleInformation: bigTextStyle,
+          largeIcon: circularBytes != null
+              ? ByteArrayAndroidBitmap(circularBytes)
+              : null,
+          styleInformation: messagingStyle,
           playSound: true,
           enableVibration: true,
-          enableLights: true,
-          ledColor: AppColors.primary,
-          ledOnMs: 1000,
-          ledOffMs: 500,
           ticker: '$title: $body',
-          // Các nút hành động tương tác trực tiếp
-          actions: const <AndroidNotificationAction>[
-            AndroidNotificationAction(
-              'reply_action',
-              'Trả lời',
-              showsUserInterface: true,
-            ),
-            AndroidNotificationAction(
-              'mark_as_read',
-              'Đã xem',
-              showsUserInterface: false,
-            ),
-          ],
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -314,6 +302,44 @@ class NotificationService {
           builder: (context) => ChatDetailScreen(receiverUser: sender),
         ),
       );
+    }
+  }
+
+  /// Cắt ảnh đại diện thành hình tròn hoàn hảo để hiển thị trên khay thông báo Android
+  static Future<Uint8List?> _cropToCircle(Uint8List bytes, {int size = 120}) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: size,
+        targetHeight: size,
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final paint = Paint()..isAntiAlias = true;
+
+      final rect = Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble());
+      canvas.clipPath(Path()..addOval(rect));
+
+      final src = Rect.fromLTWH(
+        0,
+        0,
+        image.width.toDouble(),
+        image.height.toDouble(),
+      );
+      canvas.drawImageRect(image, src, rect, paint);
+
+      final picture = recorder.endRecording();
+      final circularImage = await picture.toImage(size, size);
+      final byteData = await circularImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Lỗi crop circular avatar: $e');
+      return bytes;
     }
   }
 }
